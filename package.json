@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node parser.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start:goimagine": "node dist/runner.js goimagine",
+    "start:designbundles": "node dist/runner.js designbundles"
   },
   "keywords": [],
   "author": "",
