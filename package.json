@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "start:goimagine": "node dist/runner.js goimagine",
-    "start:designbundles": "node dist/runner.js designbundles"
+    "start:designbundles": "node dist/runner.js designbundles",
+    "merge-shops": "node dist/merge.js"
   },
   "keywords": [],
   "author": "",

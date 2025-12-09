@@ -2,7 +2,7 @@ import puppeteer from "puppeteer";
 import { promises as fs } from "fs";
 import dotenv from "dotenv";
 import type { Browser } from "puppeteer";
-import type { SiteScraper } from "./core.js";
+import type { SiteScraper } from "./types.js";
 import { goimagineScraper } from "./sites/goimagine.js";
 import { designBundlesScraper } from "./sites/designbundles.js";
 
@@ -55,7 +55,9 @@ async function runForSite(scraper: SiteScraper) {
   );
 
   console.log(
-    `\n[${config.key}] Готово! Записано ${Object.keys(result).length} магазинов в ${config.outputFile}`
+    `\n[${config.key}] Готово! Записано ${
+      Object.keys(result).length
+    } магазинов в ${config.outputFile}`
   );
 }
 

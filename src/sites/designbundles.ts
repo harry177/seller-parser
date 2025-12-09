@@ -1,10 +1,6 @@
 import type { Page } from "puppeteer";
-import {
-  absoluteUrl,
-  extractContactsFromLinksAndText,
-  sleep,
-} from "../core.js";
-import type { ShopContact, SiteConfig, SiteScraper } from "../core.js";
+import { extractContactsFromLinksAndText, sleep } from "../core.js";
+import type { ShopContact, SiteConfig, SiteScraper } from "../types.js";
 import dotenv from "dotenv";
 dotenv.config();
 
