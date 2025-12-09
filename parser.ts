@@ -8,9 +8,9 @@ const BASE_URL_NAME = process.env.SHOP1_DOMAIN_NAME;
 
 // Список корневых категорий
 const ROOT_CATEGORIES = [
-  `${BASE_URL}/jewelry/`,
+  // `${BASE_URL}/jewelry/`,
   // `${BASE_URL}/home-and-living/`,
-  // `${BASE_URL}/bath-and-beauty/`,
+   `${BASE_URL}/bath-and-beauty/`,
   // `${BASE_URL}/art/`,
   // `${BASE_URL}/fun-games/`,
   // `${BASE_URL}/celebrations/`,
@@ -21,7 +21,12 @@ const ROOT_CATEGORIES = [
 ];
 
 // Сколько страниц категории максимум обрабатываем
-const MAX_CATEGORY_PAGES = 1;
+const RAW_MAX = "all";
+
+const MAX_CATEGORY_PAGES =
+  RAW_MAX.toLowerCase() === "all"
+    ? null
+    : Number(RAW_MAX);
 
 interface ShopContact {
   instagram: string | null;
@@ -64,13 +69,11 @@ async function getShopLinksFromCategory(
   let pageNumber = 1;
   let nonEmptyPages = 0;
 
-  while (pageNumber <= MAX_CATEGORY_PAGES) {
+  while (true) {
     const url =
       pageNumber === 1
         ? categoryUrl
-        : `${categoryUrl}${
-            categoryUrl.includes("?") ? "&" : "?"
-          }page=${pageNumber}`;
+        : `${categoryUrl}${categoryUrl.includes("?") ? "&" : "?"}page=${pageNumber}`;
 
     console.log(`  Загружаем страницу категории: ${url}`);
 
@@ -84,7 +87,7 @@ async function getShopLinksFromCategory(
       break;
     }
 
-    // даём JS дорисовать товары (Algolia/InstantSearch)
+    // ждём, пока algolia дорендерит товары
     await sleep(3000);
 
     const shopLinksOnPage: string[] = await page.$$eval(
@@ -94,26 +97,26 @@ async function getShopLinksFromCategory(
     );
 
     console.log(
-      `  Страница ${pageNumber}: ссылки магазинов (сырая выборка) = ${shopLinksOnPage.length}`
+      `  Страница ${pageNumber}: Найдено магазинов = ${shopLinksOnPage.length}`
     );
 
-    if (shopLinksOnPage.length === 0) {
-      // товаров нет — дальше листать нет смысла
-      break;
-    }
+    // Если товаров нет — это последняя страница
+    if (shopLinksOnPage.length === 0) break;
 
-    nonEmptyPages += 1;
-
+    // Добавляем магазины
     shopLinksOnPage.forEach((href) => {
       const abs = absoluteUrl(href, BASE_URL);
       allShops.add(abs);
     });
 
-    if (nonEmptyPages >= MAX_CATEGORY_PAGES) {
+    nonEmptyPages++;
+
+    // === Ограничение по страницам (если включено) ===
+    if (MAX_CATEGORY_PAGES !== null && nonEmptyPages >= MAX_CATEGORY_PAGES) {
       break;
     }
 
-    pageNumber += 1;
+    pageNumber++;
     await sleep(500);
   }
 
