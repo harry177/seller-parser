@@ -18,6 +18,7 @@ export interface SiteConfig {
   rootCategories: string[];
   maxCategoryPages: number | null; // null = без лимита
   outputFile: string;
+  parallelShopScrapeConcurrency?: number;
 }
 
 export interface ShopContactWithName extends ShopContact {
