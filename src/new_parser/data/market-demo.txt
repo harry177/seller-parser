@@ -1,0 +1,26 @@
+{
+	"urlset": {
+		"url": [
+			{
+				"loc": "https://creativemarket.com/PureForm",
+				"priority": "0.8",
+				"changefreq": "daily"
+			},
+			{
+				"loc": "https://creativemarket.com/aaron",
+				"priority": "0.8",
+				"changefreq": "daily"
+			},
+			{
+				"loc": "https://creativemarket.com/Bubs",
+				"priority": "0.8",
+				"changefreq": "daily"
+			},
+			{
+				"loc": "https://creativemarket.com/brian",
+				"priority": "0.8",
+				"changefreq": "daily"
+			}
+]
+}
+}

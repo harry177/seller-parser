@@ -8,7 +8,8 @@
     "start:goimagine": "node dist/runner.js goimagine",
     "start:designbundles": "node dist/runner.js designbundles",
     "start:creativemarket": "node dist/runner.js creativemarket",
-    "merge-shops": "node dist/merge.js"
+    "merge-shops": "node dist/merge.js",
+    "start:new:creativemarket": "node dist/new_parser/runner.js creativemarket"
   },
   "keywords": [],
   "author": "",
