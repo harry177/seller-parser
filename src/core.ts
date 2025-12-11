@@ -78,7 +78,8 @@ export function extractContactsFromLinksAndText(
       lower.includes("tiktok.com") ||
       lower.includes("twitter.com") ||
       lower.includes("x.com") ||
-      lower.includes("behance.net");
+      lower.includes("behance.net") ||
+      lower.includes("dribbble.com");
 
     const isHttp = lower.startsWith("http://") || lower.startsWith("https://");
 
