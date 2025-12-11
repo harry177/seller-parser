@@ -25,11 +25,11 @@ export const creativeMarketConfig: SiteConfig = {
   rootCategories: [
     // сюда добавишь нужные категории:
     // например:
-    `${BASE_URL}/fonts/classification/monospace`,
-     `${BASE_URL}/fonts?style=calligraphy`,
-     `${BASE_URL}/fonts?style=cursive`,
-     `${BASE_URL}/fonts?style=typewriter`,
-     `${BASE_URL}/fonts?style=western`,
+    `${BASE_URL}/fonts?style=rope`,
+     `${BASE_URL}/fonts?style=modern`,
+     `${BASE_URL}/fonts?style=marker`,
+     `${BASE_URL}/fonts?style=bold`,
+     `${BASE_URL}/fonts?style=brush`,
   ],
   maxCategoryPages: MAX_CATEGORY_PAGES,
   outputFile: "creativemarket-shops.json",
