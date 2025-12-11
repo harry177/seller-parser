@@ -157,47 +157,57 @@ async function scrapeShop(
 
     await sleep(1000);
 
-    // вместо page.$x(...) делаем клик по Read More через evaluate
+    // 1) Пытаемся кликнуть таб "About"
     try {
       const clicked = await page.evaluate(() => {
-        // тут можно сузить селектор, если нужно:
-        const links = Array.from(
-          document.querySelectorAll("a.sp-a.sp-teal-link.bold, a")
+        // Ищем табы внутри блока profile-page-tabs
+        const spans = Array.from(
+          document.querySelectorAll(
+            ".profile-page-tabs .sp-tabs__heading span.tab-head-content"
+          )
         );
 
-        const readMoreLink = links.find((a) =>
-          (a.textContent || "").trim().includes("Read More")
-        );
+        const aboutSpan = spans.find((el) => {
+          const text = (el.textContent || "").trim().toLowerCase();
+          return text === "about";
+        });
 
-        if (readMoreLink) {
-          (readMoreLink as HTMLAnchorElement).click();
-          return true;
+        if (!aboutSpan) return false;
+
+        // Желательно кликнуть по <li>, чтобы сработал vue-обработчик таба
+        const li = aboutSpan.closest("li");
+        if (li) {
+          (li as HTMLElement).click();
+        } else {
+          (aboutSpan as HTMLElement).click();
         }
 
-        return false;
+        return true;
       });
 
       if (clicked) {
-        // даём странице время перерисоваться и показать about-блок
-        // и полный текст с email
+        console.log(`    [creativemarket] Таб "About" кликнут для ${shopUrl}`);
+        // ждём, пока подгрузится/перерисуется контент About
         await sleep(800);
       } else {
         console.log(
-          `    [creativemarket] "Read More" не найдено на странице ${shopUrl}`
+          `    [creativemarket] Таб "About" не найден на странице ${shopUrl}`
         );
       }
     } catch (clickErr: any) {
       console.warn(
-        `    [creativemarket] Ошибка при попытке кликнуть "Read More" для ${shopUrl}:`,
+        `    [creativemarket] Ошибка при попытке кликнуть таб "About" для ${shopUrl}:`,
         clickErr?.message || clickErr
       );
     }
 
+    // 2) После переключения на About вытаскиваем ссылки и текст
     const { links, text, name } = await page.evaluate(() => {
       const anchors = Array.from(document.querySelectorAll("a"));
       const hrefs = anchors.map((a) => (a as HTMLAnchorElement).href || "");
       const bodyText = document.body?.innerText || "";
 
+      // Название магазина
       const h1 =
         document.querySelector("h1.sp-h4") ||
         document.querySelector(".user-header-info h1") ||
