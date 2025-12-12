@@ -10,7 +10,7 @@ import { loadShopUrlsFromConfig } from "./loaders.js";
 
 import { creativeMarketScraper } from "./sites/creativemarket.js";
 import { designBundlesScraper } from "./sites/designbundles.js";
-// import { goimagineScraper } from "./sites/goimagine.js";
+import { goimagineScraper } from "./sites/goimagine.js";
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -142,7 +142,7 @@ async function main() {
   const map: Record<string, SiteScraper> = {
     creativemarket: creativeMarketScraper,
     designbundles: designBundlesScraper,
-    // goimagine: goimagineScraper,
+    goimagine: goimagineScraper,
   };
 
   const scraper = map[arg];
