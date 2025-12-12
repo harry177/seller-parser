@@ -36,13 +36,22 @@ function loadFromTxtList(raw: string): string[] {
     .filter((line) => line.length > 0 && !line.startsWith("#"));
 }
 
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
 function loadFromXmlSitemap(raw: string, baseUrl: string): string[] {
   const urls: string[] = [];
   const locRegex = /<loc>([^<]+)<\/loc>/g;
 
   let match: RegExpExecArray | null;
   while ((match = locRegex.exec(raw)) !== null) {
-    const loc = (match[1] ?? "").trim();
+    const loc = decodeXmlEntities((match[1] ?? "").trim());
     if (!loc) continue;
 
     if (loc.startsWith(baseUrl)) {
