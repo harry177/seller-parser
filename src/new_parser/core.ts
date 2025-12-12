@@ -30,16 +30,118 @@ function isMarketplaceSocialProfile(
 ): boolean {
   if (!brandSlug) return false;
 
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  const normalizedBrand = normalize(brandSlug);
+
   try {
     const u = new URL(href);
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
     const segments = u.pathname.split("/").filter(Boolean);
+
+    if (segments.length === 0) return false;
+
+    // --- YouTube special cases ---
+    // Примеры:
+    // https://www.youtube.com/c/DesignBundles
+    // https://www.youtube.com/@DesignBundles
+    // (channel/UC... не фильтруем — по нему бренд не определить)
+    if (host === "youtube.com" || host === "youtu.be") {
+      // youtu.be обычно ведёт на видео, а не на канал — пропускаем (не фильтруем)
+      if (host === "youtu.be") return false;
+
+      const first = segments[0];
+
+      // /@Brand
+      if (first && first.startsWith("@")) {
+        const handle = first.slice(1);
+        if (!handle) return false;
+        return normalize(handle) === normalizedBrand;
+      }
+
+      // /c/Brand
+      if (first === "c") {
+        const name = segments[1];
+        if (!name) return false;
+        return normalize(name) === normalizedBrand;
+      }
+
+      // /user/Brand (редко, но встречается)
+      if (first === "user") {
+        const name = segments[1];
+        if (!name) return false;
+        return normalize(name) === normalizedBrand;
+      }
+
+      return false;
+    }
+
+    // --- Default (instagram, twitter/x, pinterest, tiktok, facebook, behance...) ---
     const username = segments[0];
     if (!username) return false;
 
-    const normalizedUsername = username.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const normalizedUsername = normalize(username);
 
-    // достаточно строгая проверка: только полное совпадение
-    return normalizedUsername === brandSlug;
+    // строгое совпадение
+    return normalizedUsername === normalizedBrand;
+  } catch {
+    return false;
+  }
+}
+
+function isShareLink(lowerHref: string): boolean {
+  // Pinterest share
+  if (lowerHref.includes("pinterest.com/pin/create/")) return true;
+
+  // Twitter share
+  if (lowerHref.includes("twitter.com/intent/")) return true;
+  if (lowerHref.includes("x.com/intent/")) return true;
+
+  // Facebook share
+  if (lowerHref.includes("facebook.com/sharer")) return true;
+  if (lowerHref.includes("facebook.com/share.php")) return true;
+
+  // Generic share patterns (на всякий)
+  if (lowerHref.includes("/share?")) return true;
+  if (lowerHref.includes("addthis.com")) return true;
+
+  return false;
+}
+
+function isIgnoredWebsiteDomain(
+  href: string,
+  baseDomain: string,
+  brandSlug: string | null
+): boolean {
+  try {
+    const u = new URL(href);
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    const base = baseDomain.toLowerCase().replace(/^www\./, "");
+    const brand = (brandSlug || "").toLowerCase();
+
+    // 1) сам домен маркетплейса (и поддомены)
+    if (host === base || host.endsWith("." + base)) return true;
+
+    // 2) известные зеркала/домены маркетплейса (DesignBundles кейс)
+    if (host === "fontbundles.net") return true;
+    if (host === "monogrammaker.com") return true;
+    if (host === "imagineanything.ai") return true;
+    if (host === "dtfprinter.com") return true;
+
+    // 3) helpdesk/поддержка маркетплейса (freshdesk / zendesk)
+    const isHelpdesk =
+      host.endsWith("freshdesk.com") || host.endsWith("zendesk.com");
+
+    if (isHelpdesk) {
+      // отсекаем helpdesk только если он явно принадлежит маркетплейсу
+      // (DesignBundles: fontbundles.freshdesk.com, CreativeMarket может иметь свой и т.п.)
+      const hostLooksMarketplaceOwned =
+        (brand && host.includes(brand)) || host.includes("fontbundles");
+
+      if (hostLooksMarketplaceOwned) return true;
+    }
+
+    return false;
   } catch {
     return false;
   }
@@ -57,6 +159,8 @@ export function extractContactsFromLinksAndText(
   let tiktok: string | null = null;
   let pinterest: string | null = null;
   let behance: string | null = null;
+  let twitter: string | null = null;
+  let youtube: string | null = null;
   let website: string | null = null;
   let email: string | null = null;
 
@@ -69,6 +173,11 @@ export function extractContactsFromLinksAndText(
     if (!href) continue;
 
     const lower = href.toLowerCase();
+
+    if (isShareLink(lower)) {
+      continue; // игнорируем share/intent/create ссылки
+    }
+
     const isMarketplaceProfile = isMarketplaceSocialProfile(href, brandSlug);
 
     // --- соцсети ---
@@ -97,6 +206,27 @@ export function extractContactsFromLinksAndText(
       behance = href;
       continue;
     }
+    if (
+      (lower.includes("twitter.com") || lower.includes("x.com")) &&
+      !twitter
+    ) {
+      if (isMarketplaceProfile) continue;
+      twitter = href;
+      continue;
+    }
+    if (
+      (lower.includes("youtube.com") || lower.includes("youtu.be")) &&
+      !youtube
+    ) {
+      // если используешь фильтр "аккаунт маркетплейса" — тоже применяем
+      if (isMarketplaceProfile) continue;
+
+      // желательно отсеять share-ссылки, если ты уже добавлял isShareLink()
+      if (isShareLink(lower)) continue;
+
+      youtube = href;
+      continue;
+    }
 
     // --- email ---
     if (lower.startsWith("mailto:") && !email) {
@@ -113,12 +243,17 @@ export function extractContactsFromLinksAndText(
       lower.includes("twitter.com") ||
       lower.includes("x.com") ||
       lower.includes("behance.net") ||
-      lower.includes("dribbble.com");
+      lower.includes("dribbble.com") ||
+      lower.includes("youtube.com") ||
+      lower.includes("youtu.be");
 
     const isHttp = lower.startsWith("http://") || lower.startsWith("https://");
 
-    // внешние несоциальные ссылки → website (первая)
     if (isHttp && !isSameDomain && !isSocial) {
+      if (isIgnoredWebsiteDomain(href, baseDomainLower, brandSlug)) {
+        continue;
+      }
+
       if (!website) {
         website = href;
       }
@@ -138,6 +273,8 @@ export function extractContactsFromLinksAndText(
     email,
     pinterest,
     behance,
+    twitter,
+    youtube,
     website,
     original_shop_link: shopUrl,
   };

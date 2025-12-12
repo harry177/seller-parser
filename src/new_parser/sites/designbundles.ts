@@ -2,17 +2,14 @@ import type { Page } from "puppeteer";
 import dotenv from "dotenv";
 dotenv.config();
 
-import {
-  extractContactsFromLinksAndText,
-  sleep,
-} from "../core.js";
+import { extractContactsFromLinksAndText, sleep } from "../core.js";
 import type { ShopContact, SiteConfig, SiteScraper } from "../types.js";
 
 const BASE_URL = process.env.SHOP2!; // https://designbundles.net
 const BRAND_NAME = process.env.SHOP2_DOMAIN_NAME!;
 
 const SELLERS_FILE =
-  process.env.SHOP2_SELLERS_FILE || "data/designbundles-sellers.xml";
+  process.env.SHOP2_SELLERS_FILE || "src/new_parser/data/designbundles.xml";
 
 const SHOP_SCRAPE_CONCURRENCY = Number(
   process.env.SHOP2_SHOP_SCRAPE_CONCURRENCY || "4"
@@ -27,6 +24,19 @@ export const designBundlesConfig: SiteConfig = {
   outputFile: "designbundles-shops-from-xml.json",
   parallelShopScrapeConcurrency: SHOP_SCRAPE_CONCURRENCY,
 };
+
+function isFontBundlesMirror(url: string | null): boolean {
+  if (!url) return false;
+
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    return host === "fontbundles.net";
+  } catch {
+    // если URL кривой — не считаем зеркалом
+    return false;
+  }
+}
 
 async function scrapeShop(
   page: Page,
@@ -70,6 +80,10 @@ async function scrapeShop(
       BRAND_NAME
     );
 
+    if (isFontBundlesMirror(contacts.website)) {
+      contacts.website = null;
+    }
+
     const hasAny =
       contacts.instagram ||
       contacts.facebook ||
@@ -77,7 +91,8 @@ async function scrapeShop(
       contacts.email ||
       contacts.pinterest ||
       contacts.behance ||
-      contacts.website;
+      contacts.website ||
+      contacts.original_shop_link;
 
     return { data: hasAny ? contacts : null, shopName };
   } catch (e: any) {

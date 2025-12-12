@@ -8,6 +8,8 @@ export interface ShopContact {
   pinterest: string | null;
   website: string | null;
   behance: string | null;
+  twitter: string | null;
+  youtube: string | null;
   original_shop_link: string;
 }
 
