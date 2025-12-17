@@ -1,7 +1,14 @@
+import type { Page } from "puppeteer";
 import type { ShopContact } from "./types.js";
 
 export function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+export async function setUserAgentModern(page: Page, userAgent: string) {
+  const client = await page.createCDPSession();
+  await client.send("Network.enable");
+  await client.send("Network.setUserAgentOverride", { userAgent });
 }
 
 export function extractEmailFromText(text: string): string | null {
@@ -16,6 +23,39 @@ export function absoluteUrl(href: string, base: string): string {
   } catch {
     return href;
   }
+}
+
+export async function optimizePage(page: Page, ua: string) {
+  await setUserAgentModern(page, ua);
+
+  await page.setExtraHTTPHeaders({
+    "Accept-Language": "en-US,en;q=0.9",
+  });
+
+  await page.setViewport({ width: 1366, height: 768 });
+
+  await page.setRequestInterception(true);
+  page.on("request", (req) => {
+    const type = req.resourceType();
+    const url = req.url();
+
+    // режем всё тяжёлое и "шумное"
+    if (
+      type === "image" ||
+      type === "media" ||
+      type === "font" ||
+      type === "stylesheet" ||
+      url.includes("googletagmanager") ||
+      url.includes("google-analytics") ||
+      url.includes("doubleclick") ||
+      url.includes("facebook") ||
+      url.includes("hotjar")
+    ) {
+      return req.abort();
+    }
+
+    return req.continue();
+  });
 }
 
 // Общий конвертер ссылок + текста в ShopContact

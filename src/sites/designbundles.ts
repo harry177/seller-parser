@@ -24,8 +24,8 @@ export const designBundlesConfig: SiteConfig = {
   baseUrl: BASE_URL,
   brandName: BRAND_NAME,
   rootCategories: [
-    // `${BASE_URL}/craft`,
-    `${BASE_URL}/plus`,
+     `${BASE_URL}/craft`,
+    // `${BASE_URL}/plus`,
     // `${BASE_URL}/graphics`,
     // `${BASE_URL}/add-ons`,
     // `${BASE_URL}/templates`,

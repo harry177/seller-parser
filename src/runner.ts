@@ -6,14 +6,15 @@ import type { SiteScraper } from "./types.js";
 import { goimagineScraper } from "./sites/goimagine.js";
 import { designBundlesScraper } from "./sites/designbundles.js";
 import { creativeMarketScraper } from "./sites/creativemarket.js";
-import { sleep } from "./core.js";
+import { sleep, setUserAgentModern, optimizePage } from "./core.js";
+import { creativeFabricaScraper } from "./sites/creativefabrica.js";
 
 dotenv.config();
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-  function parseCookieString(cookieString: string, domain: string) {
+function parseCookieString(cookieString: string, domain: string) {
   return cookieString
     .split(";")
     .map((part) => part.trim())
@@ -58,9 +59,7 @@ async function applyDesignBundlesCookies(page: Page, baseUrl: string) {
   let domain: string;
   try {
     const u = new URL(baseUrl);
-    domain = u.hostname.startsWith("www.")
-      ? u.hostname.slice(4)
-      : u.hostname;
+    domain = u.hostname.startsWith("www.") ? u.hostname.slice(4) : u.hostname;
   } catch {
     domain = "designbundles.net";
   }
@@ -96,7 +95,7 @@ async function scrapeShopsSequential(
       const key = shopName || shopUrl;
       result[key] = data;
     }
-    await sleep(500);
+    await sleep(100);
   }
 }
 
@@ -136,7 +135,7 @@ async function scrapeShopsInParallel(
       }
 
       // чтобы не долбить сайт слишком агрессивно
-      await sleep(500);
+      await sleep(100);
     }
   };
 
@@ -144,7 +143,8 @@ async function scrapeShopsInParallel(
 
   for (let i = 0; i < workersCount; i++) {
     const page = await browser.newPage();
-    await page.setUserAgent(USER_AGENT);
+    await optimizePage(page, USER_AGENT);
+    await setUserAgentModern(page, USER_AGENT);
     pages.push(page);
     workers.push(worker(page));
   }
@@ -153,11 +153,9 @@ async function scrapeShopsInParallel(
 
   await Promise.all(
     pages.map((p) =>
-      p
-        .close()
-        .catch(() => {
-          /* ignore */
-        })
+      p.close().catch(() => {
+        /* ignore */
+      })
     )
   );
 }
@@ -183,7 +181,8 @@ async function collectCreativeMarketShopLinksInParallel(
 
   for (let i = 1; i < workersCount; i++) {
     const p = await browser.newPage();
-    await p.setUserAgent(USER_AGENT);
+    await optimizePage(p, USER_AGENT);
+    await setUserAgentModern(p, USER_AGENT);
     pages.push(p);
     extraPages.push(p);
   }
@@ -228,11 +227,9 @@ async function collectCreativeMarketShopLinksInParallel(
 
   await Promise.all(
     extraPages.map((p) =>
-      p
-        .close()
-        .catch(() => {
-          /* ignore */
-        })
+      p.close().catch(() => {
+        /* ignore */
+      })
     )
   );
 
@@ -245,10 +242,18 @@ async function runForSite(scraper: SiteScraper) {
 
   const browser: Browser = await puppeteer.launch({
     headless: true,
+    userDataDir: "./.puppeteer-profile-creativefabrica",
+  args: [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-blink-features=AutomationControlled",
+  ],
   });
 
   const page = await browser.newPage();
-  await page.setUserAgent(USER_AGENT);
+  await optimizePage(page, USER_AGENT);
+  await setUserAgentModern(page, USER_AGENT);
 
   // cookies только для designbundles, как раньше
   if (config.key === "designbundles") {
@@ -313,21 +318,21 @@ async function runForSite(scraper: SiteScraper) {
   );
 
   // ---- ОБХОД МАГАЗИНОВ (как раньше, последовательно на одной вкладке) ----
-  for (const shopUrl of allShopUrls) {
-    try {
-      const { data, shopName } = await scraper.scrapeShop(page, shopUrl);
-      if (data) {
-        const key = shopName || shopUrl;
-        result[key] = data;
-      }
-    } catch (e: any) {
-      console.warn(
-        `[${config.key}] Ошибка при парсинге магазина ${shopUrl}:`,
-        e?.message || e
-      );
-    }
+  const shopConcurrency = config.parallelShopScrapeConcurrency ?? 1;
 
-    await sleep(500);
+  if (shopConcurrency > 1) {
+    console.log(
+      `[${config.key}] Параллельный обход магазинов: workers=${shopConcurrency}`
+    );
+    await scrapeShopsInParallel(
+      browser,
+      scraper,
+      allShopUrls,
+      shopConcurrency,
+      result
+    );
+  } else {
+    await scrapeShopsSequential(scraper, page, allShopUrls, result);
   }
 
   await browser.close();
@@ -352,12 +357,13 @@ async function main() {
     goimagine: goimagineScraper,
     designbundles: designBundlesScraper,
     creativemarket: creativeMarketScraper,
+    creativefabrica: creativeFabricaScraper,
   };
 
   const scraper = map[arg];
   if (!scraper) {
     console.error(
-      `Неизвестный сайт "${arg}". Используй: goimagine или designbundles`
+      `Неизвестный сайт "${arg}". Используй: goimagine | designbundles | creativemarket | creativefabrica`
     );
     process.exit(1);
   }
