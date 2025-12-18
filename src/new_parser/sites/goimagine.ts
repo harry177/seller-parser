@@ -25,16 +25,22 @@ export const goimagineConfig: SiteConfig = {
   parallelShopScrapeConcurrency: SHOP_SCRAPE_CONCURRENCY,
 };
 
+function normalizeGoimagineShopUrl(url: string): string {
+  return url.replace("dispatch=companies.view", "dispatch=companies.products");
+}
+
 async function scrapeShop(
   page: Page,
   shopUrl: string
 ): Promise<{ data: ShopContact | null; shopName: string }> {
   let shopName = "";
 
+  const effectiveUrl = normalizeGoimagineShopUrl(shopUrl);
+
   try {
     console.log(`    [goimagine] Открываем магазин: ${shopUrl}`);
 
-    await page.goto(shopUrl, {
+    await page.goto(effectiveUrl, {
       waitUntil: "domcontentloaded",
       timeout: 60000,
     });
@@ -75,7 +81,7 @@ async function scrapeShop(
     const contacts = extractContactsFromLinksAndText(
       links,
       text,
-      shopUrl,
+      effectiveUrl,
       BRAND_NAME
     );
 
