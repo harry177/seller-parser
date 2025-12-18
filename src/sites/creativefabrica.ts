@@ -45,9 +45,15 @@ export const creativeFabricaConfig: SiteConfig = {
   brandName: BRAND_NAME,
   rootCategories: [
     // пример
-    `${BASE_URL}/fonts/`,
+     `${BASE_URL}/fonts/`,
     // можно добавить ещё категории
-    // `${BASE_URL}/graphics/`,
+    // `${BASE_URL}/subscriptions/graphics/`,
+    // `${BASE_URL}/3d-svg/`,
+    // `${BASE_URL}/embroidery/embroidery-designs/`,
+    // `${BASE_URL}/laser-cutting/art-design-laser-cutting/`,
+    // `${BASE_URL}/3d-printing/`,
+    // `${BASE_URL}/bundles/`,
+    // `${BASE_URL}/pod/graphics/`,
   ],
   maxCategoryPages: MAX_CATEGORY_PAGES,
   outputFile: "creativefabrica-shops.json",
@@ -119,6 +125,44 @@ async function isEndOfCategory(page: Page): Promise<boolean> {
   return text.includes("no products were found");
 }
 
+async function extractProductLinksFromCategoryPage(
+  page: Page
+): Promise<string[]> {
+  return page.evaluate(() => {
+    const out: string[] = [];
+
+    // Вариант A (старый): div.c-product-box[data-product-url]
+    document.querySelectorAll("div.c-product-box").forEach((node) => {
+      const el = node as HTMLElement;
+      const dataUrl = el.getAttribute("data-product-url");
+      if (dataUrl) out.push(dataUrl);
+
+      const a = el.querySelector(
+        'a[href*="/product/"]'
+      ) as HTMLAnchorElement | null;
+      if (a?.href) out.push(a.href);
+    });
+
+    // Вариант B (новый): карточки data-testid="product-card"
+    document
+      .querySelectorAll('[data-testid="product-card"]')
+      .forEach((card) => {
+        const a =
+          (card.querySelector(
+            'a[data-testid="product-card-title"]'
+          ) as HTMLAnchorElement | null) ||
+          (card.querySelector(
+            'a[href*="/product/"]'
+          ) as HTMLAnchorElement | null);
+
+        if (a?.href) out.push(a.href);
+      });
+
+    // чистка
+    return out.map((s) => String(s || "").trim()).filter(Boolean);
+  });
+}
+
 async function getProductLinksFromCategoryRange(
   page: Page,
   categoryUrl: string,
@@ -172,33 +216,18 @@ async function getProductLinksFromCategoryRange(
         return Array.from(productUrls); // <-- самый простой и надежный способ
       }
 
+      // ждём любой из двух вариантов карточек
       await page
-        .waitForSelector("div.c-product-box", { timeout: 8000 })
+        .waitForFunction(
+          () =>
+            document.querySelectorAll("div.c-product-box").length > 0 ||
+            document.querySelectorAll('[data-testid="product-card"]').length >
+              0,
+          { timeout: 12000 }
+        )
         .catch(() => null);
 
-      // 1) пробуем data-product-url (как на скрине)
-      // 2) fallback: a[href*="/product/"]
-      linksOnPage = await page.$$eval("div.c-product-box", (nodes) => {
-        const out: string[] = [];
-
-        for (const n of nodes) {
-          const el = n as HTMLElement;
-
-          const dataUrl = el.getAttribute("data-product-url");
-          if (dataUrl) {
-            out.push(dataUrl);
-            continue;
-          }
-
-          const a = el.querySelector(
-            'a[href*="/product/"]'
-          ) as HTMLAnchorElement | null;
-          const href = a?.href || "";
-          if (href) out.push(href);
-        }
-
-        return out.filter(Boolean);
-      });
+      linksOnPage = await extractProductLinksFromCategoryPage(page);
 
       console.log(
         `  [creativefabrica] page ${pageNumber}, attempt ${attempt}: product urls = ${linksOnPage.length}`

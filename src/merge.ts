@@ -18,7 +18,7 @@ async function readJsonFile(
 }
 
 async function main() {
-  const folder = path.resolve(process.cwd(), "parsed_data/goimagine-go");
+  const folder = path.resolve(process.cwd(), "parsed_data/creativefabrica");
   console.log(`Ищем JSON-файлы в папке: ${folder}`);
 
   const allFiles = await fs.readdir(folder);
